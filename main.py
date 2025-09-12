@@ -17,8 +17,16 @@ COMMON_HTTP_HEADERS = [
     "X-API-Key"
 ]
 
+def url_completer(text, state):
+    """Auto-complete previously saved URLs."""
+    urls = [entry["url"] for entry in load_urls()]
+    matches = [url for url in urls if url.startswith(text)]
+    if state < len(matches):
+        return matches[state]
+    return None
 
-def completer(text, state):
+
+def header_completer(text, state):
 
     """The completer function provides auto-completion suggestions for HTTP headers based on the user's current input.
 
@@ -68,25 +76,31 @@ def save_url(url_to_save, filename="urls.json"):
     Returns:
         It returns nothing. It just saves the URL to the given filename.
     """
+
     try:
         with open(filename, "r") as f:
-            file = json.load(f)
+                file = json.load(f)
     except (FileNotFoundError, json.decoder.JSONDecodeError):
         file = []
 
-    for entry in data:
+    # Flag to track if URL was found
+    found = False
+
+    for entry in file:
         if entry["url"] == url_to_save:
             entry["usage_count"] += 1
+            found = True
             break
-        else:
-            file.append({
-                "url": url_to_save,
-                "added_on": datetime.now().strftime("%Y-%m-%d"),
-                "usage_count": 1
-            })
+
+    if not found:
+        file.append({
+            "url": url_to_save,
+            "added_on": datetime.now().strftime("%Y-%m-%d"),
+            "usage_count": 1
+        })
 
     with open(filename, "w") as f:
-        json.dump(data, f, indent=2)
+        json.dump(file, f, indent=2)
 
 def load_urls(filename="urls.json"):
     """Load the URLs from the given filename.
@@ -97,39 +111,43 @@ def load_urls(filename="urls.json"):
     try:
         with open(filename, "r") as f:
             file = json.load(f)
-            return file["urls"]
+            return file
     except (FileNotFoundError, json.decoder.JSONDecodeError):
         file = []
         return file
 
-
-
-# Take the input from the user.
-url = input("Enter URL: ")
-
-# Creating the headers.
-headers = {}
-num_headers = int(input("Enter number of headers: "))
-readline.set_completer(completer)
-for i in range(num_headers):
+if __name__ == "__main__":
+    # Load the stored urls from the JSON file.
+    url_stored = load_urls()
+    readline.set_completer(header_completer)
+    readline.set_completer(url_completer)
+    # Take the input from the user.
     readline.parse_and_bind("tab: complete")
-    key = input("Inserisci un header HTTP (usa TAB per completare): ") #da rivedere come frase
-    print(f"Hai inserito: {key}")
-    value = input(f"Enter header value for '{key}': ")
-    headers[key] = value
+    url_input = input("Enter URL: ")
+    save_url(url_input)
 
-# Creating the data in the JSON format to be sent out.
-data = {}
-num_fields = int(input("Enter number of JSON fields (data): "))
-for i in range(num_fields):
-    key = input(f"Enter data key #{i + 1}: ")
-    value = input(f"Enter value for '{key}': ")
-    data[key] = value
+    # Creating the headers.
+    headers = {}
+    num_headers = int(input("Enter number of headers: "))
+    for i in range(num_headers):
+        readline.parse_and_bind("tab: complete")
+        key = input("Inserisci un header HTTP (usa TAB per completare): ") #da rivedere come frase
+        print(f"Hai inserito: {key}")
+        value = input(f"Enter header value for '{key}': ")
+        headers[key] = value
 
-# Send a request.
-response = requests.post(url, headers=headers, json=data)
+    # Creating the data in the JSON format to be sent out.
+    data = {}
+    num_fields = int(input("Enter number of JSON fields (data): "))
+    for i in range(num_fields):
+        key = input(f"Enter data key #{i + 1}: ")
+        value = input(f"Enter value for '{key}': ")
+        data[key] = value
 
-# Output result.
-print("\nStatus Code:", response.status_code)
-print("Response Body:")
-print(response.text)
+    # Send a request.
+    response = requests.post(url_input, headers=headers, json=data)
+
+    # Output result.
+    print("\nStatus Code:", response.status_code)
+    print("Response Body:")
+    print(response.text)
