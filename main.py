@@ -17,13 +17,6 @@ COMMON_HTTP_HEADERS = [
     "X-API-Key"
 ]
 
-def url_completer(text, state):
-    """Auto-complete previously saved URLs."""
-    urls = [entry["url"] for entry in load_urls()]
-    matches = [url for url in urls if url.startswith(text)]
-    if state < len(matches):
-        return matches[state]
-    return None
 
 
 def header_completer(text, state):
@@ -67,8 +60,37 @@ def header_completer(text, state):
 
 
 
-def save_url(url_to_save, filename="urls.json"):
+def url_completer(text, state):
+    """The completer function provides auto-completion suggestions for URLs based on the user's current input.
 
+    Parameters:
+        text (str): The current text typed by the user.
+        state (int): The current state of the auto-completion suggestions.
+
+    Returns:
+        str or None: The matching URL at the given state, or None if there are no more matches.
+    """
+    urls = [entry["url"] for entry in load_urls()]
+    matches = [url for url in urls if url.startswith(text)]
+    if state < len(matches):
+        return matches[state]
+    return None
+
+
+
+def get_valid_int(prompt="Enter an integer: "):
+    """Prompt the user for an integer input until a valid integer is provided."""
+    while True:
+        user_input = input(prompt)
+        try:
+            value = int(user_input)
+            return value
+        except ValueError:
+            print("Oops! That's not a valid integer. Please try again.")
+
+        
+
+def save_url(url_to_save, filename="urls.json"):
     """Save the URL from the given URL to the given filename.
     Parameters:
         url_to_save (str): The URL to save.
@@ -116,27 +138,66 @@ def load_urls(filename="urls.json"):
         file = []
         return file
 
+
+def remove_incorrect_url(url_to_remove, filename="urls.json"):
+    """Remove a URL from the saved URLs file."""
+    try:
+        with open(filename, "r") as f:
+            file = json.load(f)
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
+        file = []
+    new_file = [entry for entry in file if entry["url"] != url_to_remove]
+    with open(filename, "w") as f:
+        json.dump(new_file, f, indent=2)
+
+
 if __name__ == "__main__":
-    # Load the stored urls from the JSON file.
+
+    # Print a welcome message.
+    print("""
+        Welcome to The CUrlFather.
+
+        I’m gonna make you a curl  
+        that you *cannot* refuse. 🍝🔗
+
+        Ready to send some requests? Let’s make 'em an offer they can't deny...
+        """)
+    print("Welcome to The Curlfather - Your HTTP POST Request Assistant!")
+
+    # Load the stored URLs from the JSON file.
     url_stored = load_urls()
-    readline.set_completer(header_completer)
+
+    # Create the headers dictionary.
+    headers = {}
+
+    # Set completer for URLs when entering the URL.
+    # A completer function provides intelligent auto-completion for command arguments, offering a list of possible values when the user presses the Tab key.
+    # It typically takes two arguments: the current input text and the state (index of completion suggestion), and returns a matching completion string or None 
+    # when no more completions are available.
     readline.set_completer(url_completer)
-    # Take the input from the user.
+
+    # Bind the TAB key to the completion function you just set.
     readline.parse_and_bind("tab: complete")
-    url_input = input("Enter URL: ")
+
+    # Take the URL input from the user.
+    url_input = input("Enter URL (use TAB for auto-completion): ")
+    
+    # Call the function to save the URL.
     save_url(url_input)
 
-    # Creating the headers.
-    headers = {}
+    
+    
     num_headers = int(input("Enter number of headers: "))
     for i in range(num_headers):
+        # Set completer for headers when entering headers.
+        readline.set_completer(header_completer)
         readline.parse_and_bind("tab: complete")
-        key = input("Inserisci un header HTTP (usa TAB per completare): ") #da rivedere come frase
-        print(f"Hai inserito: {key}")
+        key = input("Enter an HTTP header (use TAB for auto-completion): ")
+        print(f"You entered: {key}")
         value = input(f"Enter header value for '{key}': ")
         headers[key] = value
 
-    # Creating the data in the JSON format to be sent out.
+    # Enter JSON data fields.
     data = {}
     num_fields = int(input("Enter number of JSON fields (data): "))
     for i in range(num_fields):
@@ -144,10 +205,11 @@ if __name__ == "__main__":
         value = input(f"Enter value for '{key}': ")
         data[key] = value
 
-    # Send a request.
-    response = requests.post(url_input, headers=headers, json=data)
-
-    # Output result.
-    print("\nStatus Code:", response.status_code)
-    print("Response Body:")
-    print(response.text)
+    # Send a POST request with a timeout for robustness.
+    try:
+        response = requests.post(url_input, headers=headers, json=data, timeout=10)
+        print("\nStatus Code:", response.status_code)
+        print("Response Body:")
+        print(response.text)
+    except requests.exceptions.RequestException as e:
+        print("An error occurred while making the request:", str(e))
