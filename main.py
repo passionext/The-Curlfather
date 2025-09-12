@@ -3,7 +3,7 @@ import requests
 import readline
 from datetime import datetime
 
-# 77434978-5645-6348-4377-3570764d4d4f
+
 # Predefined list of common HTTP headers.
 COMMON_HTTP_HEADERS = [
     "Accept", "Accept-Charset", "Accept-Encoding", "Accept-Language",
@@ -100,27 +100,30 @@ def save_url(url_to_save, filename="urls.json"):
     """
 
     try:
+        # Try to open the file in read mode.
         with open(filename, "r") as f:
+                # Load the JSON content from the file into the variable 'file'.
                 file = json.load(f)
+    # If the file doesn't exist or contains invalid JSON, handle the exception.
     except (FileNotFoundError, json.decoder.JSONDecodeError):
         file = []
 
     # Flag to track if URL was found
     found = False
-
+    # Iterate through each entry in the loaded JSON data.  
     for entry in file:
         if entry["url"] == url_to_save:
             entry["usage_count"] += 1
             found = True
             break
-
+    # If the URL was not found, add a new entry with the current date and usage count of 1.
     if not found:
         file.append({
             "url": url_to_save,
             "added_on": datetime.now().strftime("%Y-%m-%d"),
             "usage_count": 1
         })
-
+    # Write the updated list of URLs back to the file in JSON format with indentation for readability.
     with open(filename, "w") as f:
         json.dump(file, f, indent=2)
 
@@ -140,17 +143,25 @@ def load_urls(filename="urls.json"):
 
 
 def remove_incorrect_url(url_to_remove, filename="urls.json"):
-    """Remove a URL from the saved URLs file."""
+    """Remove a URL from the saved URLs file.
+    Parameters:
+        url_to_remove (str): The URL to remove.
+        filename (str): The filename to remove the URL from.
+        Returns:
+        It returns nothing. It just removes the URL from the given filename."""
+    
     try:
         with open(filename, "r") as f:
             file = json.load(f)
     except (FileNotFoundError, json.decoder.JSONDecodeError):
         file = []
+    # Create a new list excluding the URL to be removed.
     new_file = [entry for entry in file if entry["url"] != url_to_remove]
     with open(filename, "w") as f:
         json.dump(new_file, f, indent=2)
 
 
+# Main execution starts here.
 if __name__ == "__main__":
 
     # Print a welcome message.
@@ -158,11 +169,10 @@ if __name__ == "__main__":
         Welcome to The CUrlFather.
 
         I’m gonna make you a curl  
-        that you *cannot* refuse. 🍝🔗
+        that you *cannot* refuse.
 
         Ready to send some requests? Let’s make 'em an offer they can't deny...
         """)
-    print("Welcome to The Curlfather - Your HTTP POST Request Assistant!")
 
     # Load the stored URLs from the JSON file.
     url_stored = load_urls()
@@ -187,7 +197,7 @@ if __name__ == "__main__":
 
     
     
-    num_headers = int(input("Enter number of headers: "))
+    num_headers = get_valid_int()
     for i in range(num_headers):
         # Set completer for headers when entering headers.
         readline.set_completer(header_completer)
@@ -199,7 +209,7 @@ if __name__ == "__main__":
 
     # Enter JSON data fields.
     data = {}
-    num_fields = int(input("Enter number of JSON fields (data): "))
+    num_fields = get_valid_int()
     for i in range(num_fields):
         key = input(f"Enter data key #{i + 1}: ")
         value = input(f"Enter value for '{key}': ")
@@ -211,6 +221,10 @@ if __name__ == "__main__":
         print("\nStatus Code:", response.status_code)
         print("Response Body:")
         print(response.text)
+    except requests.exceptions.Timeout:
+        print("Timeout Error: The server took too long to respond.")
+    except requests.exceptions.ConnectionError:
+        print("Connection Error: Could not connect to the server.")
     except requests.exceptions.RequestException as e:
-        print("An error occurred while making the request:", str(e))
-
+        print(f"Unexpected error occurred: {e}")
+    
