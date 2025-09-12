@@ -2,6 +2,9 @@ import json
 import requests
 import readline
 from datetime import datetime
+import os
+import ssl
+
 
 
 # Predefined list of common HTTP headers.
@@ -89,6 +92,31 @@ def get_valid_int(prompt="Enter an integer: "):
             print("Oops! That's not a valid integer. Please try again.")
 
         
+        
+
+def get_certificates(prompt="Enter path to the certificate file: "):
+    """Prompt the user for a certificate input until a valid certificate is provided.
+    Parameters:
+        prompt (str): The prompt message to display to the user.
+    Returns:
+        str: The valid certificate input from the user."""
+    while True:
+        cert_path = input(prompt).strip()
+        
+        # Check if the file exists
+        if not os.path.isfile(cert_path):
+            print("❌ File does not exist. Please try again.")
+            continue
+        
+        # Try to load certificate to verify validity
+        try:
+            ssl._ssl._test_decode_cert(cert_path)  # uses OpenSSL bindings to parse cert
+            return cert_path
+        except Exception as e:
+            print(f"❌ Invalid certificate file: {e}")
+            continue
+
+
 
 def save_url(url_to_save, filename="urls.json"):
     """Save the URL from the given URL to the given filename.
@@ -126,6 +154,8 @@ def save_url(url_to_save, filename="urls.json"):
     # Write the updated list of URLs back to the file in JSON format with indentation for readability.
     with open(filename, "w") as f:
         json.dump(file, f, indent=2)
+
+
 
 def load_urls(filename="urls.json"):
     """Load the URLs from the given filename.
@@ -210,6 +240,12 @@ if __name__ == "__main__":
     # Enter JSON data fields.
     data = {}
     num_fields = get_valid_int()
+    verify_cert = True
+    if input("Do you want to verify the server's TLS certificate? (y/n): ").lower() == 'y':
+        verify_cert = get_certificates("Enter path to the certificate file: ")
+    else:
+        verify_cert = False
+
     for i in range(num_fields):
         key = input(f"Enter data key #{i + 1}: ")
         value = input(f"Enter value for '{key}': ")
@@ -217,7 +253,7 @@ if __name__ == "__main__":
 
     # Send a POST request with a timeout for robustness.
     try:
-        response = requests.post(url_input, headers=headers, json=data, timeout=10)
+        response = requests.post(url_input, headers=headers, json=data, timeout=10, verify=verify_cert)
         print("\nStatus Code:", response.status_code)
         print("Response Body:")
         print(response.text)
