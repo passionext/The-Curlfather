@@ -120,7 +120,8 @@ def get_valid_certificate_path(prompt="Enter path to the certificate file: "):
 
 
 def save_url(url_to_save, filename="urls.json"):
-    """Save the URL from the given URL to the given filename.
+    """
+    Save the URL from the given URL to the given filename.
     Parameters:
         url_to_save (str): The URL to save.
         filename (str): The filename to save the URL to.
@@ -158,15 +159,20 @@ def save_url(url_to_save, filename="urls.json"):
 
 
 def load_urls(filename="urls.json"):
-    """Load the URLs from the given filename.
+    """
+    Load the URLs from the given filename.
     Parameters:
         filename (str): The filename to load the URLs from.
     Returns:
-        stored_urls (dict): The URLs stored in the given filename."""
+        stored_urls (dict): The URLs stored in the given filename.
+        """
     try:
+        # Try to open the file in read mode.
         with open(filename, "r") as f:
+            # Load the JSON content from the file into the variable 'file'.
             file = json.load(f)
             return file
+    # If the file doesn't exist or contains invalid JSON, handle the exception.
     except (FileNotFoundError, json.decoder.JSONDecodeError):
         file = []
         return file
@@ -211,8 +217,9 @@ Ready to send some requests? Let's make them an offer they can't deny...
     url_stored = load_urls()
 
 
-    # Create the headers' dictionary.
+    # Create the headers and data dictionaries to store HTTP headers and JSON body data.
     headers = {}
+    data = {}
 
 
     # Main menu loop
@@ -225,24 +232,27 @@ Ready to send some requests? Let's make them an offer they can't deny...
         if choice == "1":
             # Set completer for URLs when entering the URL.
             readline.set_completer(url_completer)
+            # Enable tab completion for the URL input.
             readline.parse_and_bind("tab: complete")
             url_input = input("Enter URL (use TAB for auto-completion): ")
             save_url(url_input)
 
-            # Headers
-            headers = {}
+            # Set completer for HTTP headers when entering headers. 
             num_headers = get_valid_int("How many HTTP headers do you want to add? ")
             for i in range(num_headers):
+                # Set completer for HTTP headers when entering headers.
                 readline.set_completer(header_completer)
+                # Enable tab completion for the header input.
                 readline.parse_and_bind("tab: complete")
                 key = input("Enter an HTTP header (use TAB for auto-completion): ")
                 value = input(f"Enter header value for '{key}': ")
                 headers[key] = value
+            # Disable the completer after header input is done.
             readline.set_completer(None)
 
-            # Data
-            data = {}
+            # Input the number of data fields to add to the JSON body.
             num_fields = get_valid_int("How many data fields do you want to add to the JSON body? ")
+            # Loop to get each key-value pair for the JSON body.
             for i in range(num_fields):
                 key = input(f"Enter data key #{i + 1}: ")
                 value = input(f"Enter value for '{key}': ")
@@ -256,9 +266,13 @@ Ready to send some requests? Let's make them an offer they can't deny...
             # Send POST request
             try:
                 response = requests.post(url_input, headers=headers, json=data, timeout=10, verify=verify_cert)
+                # Check if the response is successful (status code 2xx)
                 print(f"\nStatus Code: {response.status_code}")
-                print("Response Body:")
-                print(response.text)
+                # Print the response body.
+                print(f"Response Body: {response.text}")
+
+            # Handle different types of exceptions that may occur during the request.
+            # Each except block catches a specific exception and prints an appropriate error message.
             except requests.exceptions.Timeout:
                 print("Timeout Error: The server took too long to respond.")
             except requests.exceptions.ConnectionError:
@@ -267,17 +281,27 @@ Ready to send some requests? Let's make them an offer they can't deny...
                 print(f"Unexpected error occurred: {e}")
 
         elif choice == "2":
-            # Remove a saved URL
+            # This option allows the user to remove a saved URL.
+            # Load the saved URLs.
             urls = load_urls()
+            # Check if there are any URLs saved.
             if not urls:
                 print("No URLs saved.")
                 continue
             print("Saved URLs:")
+            # List the saved URLs with their corresponding index numbers.
+            # This "for" loop iterates over the 'urls' list, using 'enumerate' to get both the index (starting from 1) and the
+            # URL entry.
             for idx, entry in enumerate(urls, 1):
                 print(f"{idx}. {entry['url']}")
+            # Prompt the user to select a URL to remove by entering its index number.
             idx_to_remove = get_valid_int("Enter the number of the URL to remove: ")
+            # Check if the entered index is valid (within the range of available URLs).
+            # If valid, remove the selected URL and confirm the removal to the user.
             if 1 <= idx_to_remove <= len(urls):
+                # Get the URL to remove based on the user's selection.
                 url_to_remove = urls[idx_to_remove - 1]["url"]
+                # Call the function to remove the URL from the saved list.
                 remove_incorrect_url(url_to_remove)
                 print(f"URL '{url_to_remove}' removed.")
             else:

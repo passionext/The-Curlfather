@@ -30,7 +30,7 @@
 Run the script:
 
 ```bash
-python the_curlfather.py
+python main.py
 ```
 
 You will see a menu:
@@ -74,10 +74,10 @@ Main Menu:
 ## Requirements
 
 - Python 3.6+
-- `requests`
-- `cryptography`
+- All dependencies are listed in `requirements.txt`.
+   - Main: `requests`, `cryptography`
 
-## Example
+## Example Session
 
 ```text
 Main Menu:
