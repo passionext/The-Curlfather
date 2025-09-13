@@ -115,8 +115,9 @@ Pull requests are welcome! For major changes, please open an issue first to disc
 
 ## License
 
-[MIT](LICENSE)
+This project is licensed under the Apache License 2.0.
+You may obtain a copy of the license at:
 
----
+http://www.apache.org/licenses/LICENSE-2.0
 
 _May your requests always get a favorable response. The CUrlFather is here to make sure they can't refuse!_
