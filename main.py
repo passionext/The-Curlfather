@@ -3,7 +3,8 @@ import requests
 import readline
 from datetime import datetime
 import os
-import ssl
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 
 
 
@@ -23,7 +24,6 @@ COMMON_HTTP_HEADERS = [
 
 
 def header_completer(text, state):
-
     """The completer function provides auto-completion suggestions for HTTP headers based on the user's current input.
 
     Parameters:
@@ -86,34 +86,35 @@ def get_valid_int(prompt="Enter an integer: "):
     while True:
         user_input = input(prompt)
         try:
-            value = int(user_input)
-            return value
+            int_value = int(user_input)
+            return int_value
         except ValueError:
-            print("Oops! That's not a valid integer. Please try again.")
+            print("Invalid integer. Please try again.")
 
-        
-        
 
-def get_certificates(prompt="Enter path to the certificate file: "):
-    """Prompt the user for a certificate input until a valid certificate is provided.
+
+def get_valid_certificate_path(prompt="Enter path to the certificate file: "):
+    """
+    Prompt the user for a certificate path until a valid certificate is provided.
+    The function checks both file existence and certificate validity.
     Parameters:
         prompt (str): The prompt message to display to the user.
     Returns:
-        str: The valid certificate input from the user."""
+        str: The valid certificate path provided by the user.
+    """
     while True:
         cert_path = input(prompt).strip()
-        
-        # Check if the file exists
         if not os.path.isfile(cert_path):
-            print("❌ File does not exist. Please try again.")
+            print("File does not exist. Please try again.")
             continue
-        
-        # Try to load certificate to verify validity
         try:
-            ssl._ssl._test_decode_cert(cert_path)  # uses OpenSSL bindings to parse cert
+            with open(cert_path, 'rb') as cert_file:
+                cert_data = cert_file.read()
+                x509.load_pem_x509_certificate(cert_data, default_backend())
+            print("Certificate is valid.")
             return cert_path
-        except Exception as e:
-            print(f"❌ Invalid certificate file: {e}")
+        except Exception as ex:
+            print(f"Invalid certificate file: {ex}")
             continue
 
 
@@ -130,15 +131,15 @@ def save_url(url_to_save, filename="urls.json"):
     try:
         # Try to open the file in read mode.
         with open(filename, "r") as f:
-                # Load the JSON content from the file into the variable 'file'.
-                file = json.load(f)
+            # Load the JSON content from the file into the variable 'file'.
+            file = json.load(f)
     # If the file doesn't exist or contains invalid JSON, handle the exception.
     except (FileNotFoundError, json.decoder.JSONDecodeError):
         file = []
 
     # Flag to track if URL was found
     found = False
-    # Iterate through each entry in the loaded JSON data.  
+    # Iterate through each entry in the loaded JSON data.
     for entry in file:
         if entry["url"] == url_to_save:
             entry["usage_count"] += 1
@@ -156,7 +157,6 @@ def save_url(url_to_save, filename="urls.json"):
         json.dump(file, f, indent=2)
 
 
-
 def load_urls(filename="urls.json"):
     """Load the URLs from the given filename.
     Parameters:
@@ -172,14 +172,16 @@ def load_urls(filename="urls.json"):
         return file
 
 
+
 def remove_incorrect_url(url_to_remove, filename="urls.json"):
-    """Remove a URL from the saved URLs file.
+    """
+    Remove a URL from the saved URLs file.
     Parameters:
         url_to_remove (str): The URL to remove.
         filename (str): The filename to remove the URL from.
         Returns:
-        It returns nothing. It just removes the URL from the given filename."""
-    
+        It returns nothing. It just removes the URL from the given filename.
+        """
     try:
         with open(filename, "r") as f:
             file = json.load(f)
@@ -191,76 +193,99 @@ def remove_incorrect_url(url_to_remove, filename="urls.json"):
         json.dump(new_file, f, indent=2)
 
 
+
 # Main execution starts here.
 if __name__ == "__main__":
 
     # Print a welcome message.
     print("""
-        Welcome to The CUrlFather.
+Welcome to The CUrlFather.
 
-        I’m gonna make you a curl  
-        that you *cannot* refuse.
+I'm gonna make you a curl that you *cannot* refuse.
 
-        Ready to send some requests? Let’s make 'em an offer they can't deny...
-        """)
+Ready to send some requests? Let's make them an offer they can't deny...
+""")
+
 
     # Load the stored URLs from the JSON file.
     url_stored = load_urls()
 
-    # Create the headers dictionary.
+
+    # Create the headers' dictionary.
     headers = {}
 
-    # Set completer for URLs when entering the URL.
-    # A completer function provides intelligent auto-completion for command arguments, offering a list of possible values when the user presses the Tab key.
-    # It typically takes two arguments: the current input text and the state (index of completion suggestion), and returns a matching completion string or None 
-    # when no more completions are available.
-    readline.set_completer(url_completer)
 
-    # Bind the TAB key to the completion function you just set.
-    readline.parse_and_bind("tab: complete")
+    # Main menu loop
+    while True:
+        print("\nMain Menu:")
+        print("1. Send a POST request")
+        print("2. Remove a saved URL")
+        print("3. Exit")
+        choice = input("Select an option (1-3): ").strip()
+        if choice == "1":
+            # Set completer for URLs when entering the URL.
+            readline.set_completer(url_completer)
+            readline.parse_and_bind("tab: complete")
+            url_input = input("Enter URL (use TAB for auto-completion): ")
+            save_url(url_input)
 
-    # Take the URL input from the user.
-    url_input = input("Enter URL (use TAB for auto-completion): ")
-    
-    # Call the function to save the URL.
-    save_url(url_input)
+            # Headers
+            headers = {}
+            num_headers = get_valid_int("How many HTTP headers do you want to add? ")
+            for i in range(num_headers):
+                readline.set_completer(header_completer)
+                readline.parse_and_bind("tab: complete")
+                key = input("Enter an HTTP header (use TAB for auto-completion): ")
+                value = input(f"Enter header value for '{key}': ")
+                headers[key] = value
+            readline.set_completer(None)
 
-    
-    
-    num_headers = get_valid_int()
-    for i in range(num_headers):
-        # Set completer for headers when entering headers.
-        readline.set_completer(header_completer)
-        readline.parse_and_bind("tab: complete")
-        key = input("Enter an HTTP header (use TAB for auto-completion): ")
-        print(f"You entered: {key}")
-        value = input(f"Enter header value for '{key}': ")
-        headers[key] = value
+            # Data
+            data = {}
+            num_fields = get_valid_int("How many data fields do you want to add to the JSON body? ")
+            for i in range(num_fields):
+                key = input(f"Enter data key #{i + 1}: ")
+                value = input(f"Enter value for '{key}': ")
+                data[key] = value
 
-    # Enter JSON data fields.
-    data = {}
-    num_fields = get_valid_int()
-    verify_cert = True
-    if input("Do you want to verify the server's TLS certificate? (y/n): ").lower() == 'y':
-        verify_cert = get_certificates("Enter path to the certificate file: ")
-    else:
-        verify_cert = False
+            # Certificate verification
+            verify_cert = False
+            if input("Do you want to verify the server's TLS certificate? (y/n): ").lower() == 'y':
+                verify_cert = get_valid_certificate_path()
 
-    for i in range(num_fields):
-        key = input(f"Enter data key #{i + 1}: ")
-        value = input(f"Enter value for '{key}': ")
-        data[key] = value
+            # Send POST request
+            try:
+                response = requests.post(url_input, headers=headers, json=data, timeout=10, verify=verify_cert)
+                print(f"\nStatus Code: {response.status_code}")
+                print("Response Body:")
+                print(response.text)
+            except requests.exceptions.Timeout:
+                print("Timeout Error: The server took too long to respond.")
+            except requests.exceptions.ConnectionError:
+                print("Connection Error: Could not connect to the server.")
+            except requests.exceptions.RequestException as e:
+                print(f"Unexpected error occurred: {e}")
 
-    # Send a POST request with a timeout for robustness.
-    try:
-        response = requests.post(url_input, headers=headers, json=data, timeout=10, verify=verify_cert)
-        print("\nStatus Code:", response.status_code)
-        print("Response Body:")
-        print(response.text)
-    except requests.exceptions.Timeout:
-        print("Timeout Error: The server took too long to respond.")
-    except requests.exceptions.ConnectionError:
-        print("Connection Error: Could not connect to the server.")
-    except requests.exceptions.RequestException as e:
-        print(f"Unexpected error occurred: {e}")
-    
+        elif choice == "2":
+            # Remove a saved URL
+            urls = load_urls()
+            if not urls:
+                print("No URLs saved.")
+                continue
+            print("Saved URLs:")
+            for idx, entry in enumerate(urls, 1):
+                print(f"{idx}. {entry['url']}")
+            idx_to_remove = get_valid_int("Enter the number of the URL to remove: ")
+            if 1 <= idx_to_remove <= len(urls):
+                url_to_remove = urls[idx_to_remove - 1]["url"]
+                remove_incorrect_url(url_to_remove)
+                print(f"URL '{url_to_remove}' removed.")
+            else:
+                print("Invalid selection.")
+
+        elif choice == "3":
+            print("Goodbye!")
+            break
+        else:
+            print("Invalid option. Please select 1, 2, or 3.")
+
